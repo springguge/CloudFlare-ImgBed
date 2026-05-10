@@ -5,7 +5,7 @@ export async function onRequest(context) {
   return requireAdminPageSession(context);
 }
 
-async function requireAdminPageSession(context) {
+export async function requireAdminPageSession(context) {
   const { request, env } = context;
   const securityConfig = await fetchSecurityConfig(env);
   const adminUsername = securityConfig.auth?.admin?.adminUsername;
