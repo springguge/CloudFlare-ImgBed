@@ -6,6 +6,16 @@
 
   function fallbackCopy(text) {
     var value = String(text == null ? '' : text);
+    var activeElement = document.activeElement;
+    var selection = window.getSelection ? window.getSelection() : null;
+    var ranges = [];
+
+    if (selection) {
+      for (var i = 0; i < selection.rangeCount; i += 1) {
+        ranges.push(selection.getRangeAt(i));
+      }
+    }
+
     var textarea = document.createElement('textarea');
     textarea.value = value;
     textarea.autocomplete = 'off';
@@ -23,6 +33,7 @@
     textarea.style.padding = '0';
     textarea.style.webkitUserSelect = 'text';
     textarea.style.userSelect = 'text';
+    textarea.setAttribute('readonly', '');
     document.body.appendChild(textarea);
 
     textarea.focus({ preventScroll: true });
@@ -34,6 +45,19 @@
       copied = document.execCommand('copy');
     } finally {
       document.body.removeChild(textarea);
+      if (selection) {
+        selection.removeAllRanges();
+        ranges.forEach(function (range) {
+          selection.addRange(range);
+        });
+      }
+      if (activeElement && activeElement.focus) {
+        try {
+          activeElement.focus({ preventScroll: true });
+        } catch (focusError) {
+          activeElement.focus();
+        }
+      }
     }
 
     if (!copied) throw new Error('execCommand copy failed');
@@ -44,11 +68,16 @@
     var value = String(text == null ? '' : text);
     window.__imbLastCopyText = value;
 
-    if (isMobileLike() && navigator.clipboard && navigator.clipboard.writeText) {
-      return navigator.clipboard.writeText(value).catch(function () {
+    if (isMobileLike()) {
+      try {
         fallbackCopy(value);
-        return true;
-      });
+        return Promise.resolve(true);
+      } catch (fallbackError) {
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+          return navigator.clipboard.writeText(value);
+        }
+        return Promise.reject(fallbackError);
+      }
     }
 
     try {
